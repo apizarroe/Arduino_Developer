@@ -11,17 +11,21 @@
 const int RECV_PIN=4;
 const int IR_SEND_PIN=5;
 
-OneWire ourWire(RECV_PIN);                //Se establece el pin 2  como bus OneWire
-DallasTemperature sensors(&ourWire); //Se declara una variable u objeto para nuestro sensor
+//Se establece el pin 4 como bus OneWire
+//Se declara una variable para nuestro sensor
+OneWire ourWire(RECV_PIN);
+DallasTemperature sensors(&ourWire);
 
 float t;
 unsigned long lastMillis = 0;
 unsigned long previousMillis = 0;
 const long interval = 5000;
  
+//Se establece el topico publicador
 #define AWS_IOT_PUBLISH_TOPIC   "esp8266/pub"
+//Se establece el topico suscriptor
 #define AWS_IOT_SUBSCRIBE_TOPIC "esp8266/sub"
- 
+
 WiFiClientSecure net;
  
 BearSSL::X509List cert(cacert);
@@ -35,6 +39,7 @@ time_t nowish = 1510592825;
  
 void NTPConnect(void)
 {
+  //Fijando la zona horaria para tomar hora correcta
   Serial.print("Setting time using SNTP");
   configTime(TIME_ZONE * 3600, 0 * 3600, "pool.ntp.org", "time.nist.gov");
   now = time(nullptr);
@@ -66,11 +71,12 @@ void messageReceived(char *topic, byte *payload, unsigned int length)
 void connectAWS()
 {
   delay(3000);
+  //Se establece la conexión al WiFi
   WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
- 
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD); 
   Serial.println(String("Attempting to connect to SSID: ") + String(WIFI_SSID));
- 
+
+  //Proceso de verificación de conectividad 
   while (WiFi.status() != WL_CONNECTED)
   {
     Serial.print(".");
@@ -126,7 +132,7 @@ void setup()
   
 void loop()
 {
-  sensors.requestTemperatures();   //Se envía el comando para leer la temperatura
+  sensors.requestTemperatures();  //Se envía el comando para leer la temperatura
   t = sensors.getTempCByIndex(0); //Se obtiene la temperatura en ºC
   Serial.print("Temperatura= ");
   Serial.print(t);
@@ -139,7 +145,6 @@ void loop()
   }
  
   delay(2000);
- 
   now = time(nullptr);
  
   if (!client.connected())
