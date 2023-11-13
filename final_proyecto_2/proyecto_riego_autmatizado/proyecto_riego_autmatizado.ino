@@ -9,7 +9,9 @@
 
 //Pines de los Sensores
 const int TEMPER_PIN=4;
+const int NIVEL1_PIN=0;
 const int OPTO01_PIN=5;
+const int OPTO02_PIN=2;
 const int HUMEDA_PIN=A0;
 
 //Se establece el pin 2 como bus OneWire (ver mapa GPIO)
@@ -19,7 +21,7 @@ DallasTemperature sensors(&ourWire);
 
 Ubidots ubidots(UBIDOTS_TOKEN, UBI_HTTP);
 
-int sensorhumeValue, valvula_riego;
+int sensorhumeValue, valvula_riego, valvula_tanque;
 float humedadValue, temper;
 WiFiClientSecure net;
 time_t now;
@@ -63,11 +65,13 @@ void WiFiConnect()
 }
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(9600);
   WiFiConnect();
   sensors.begin();
   pinMode(OPTO01_PIN, OUTPUT);
+  pinMode(OPTO02_PIN, OUTPUT);
   pinMode(HUMEDA_PIN, INPUT);
+  pinMode(NIVEL1_PIN, INPUT_PULLUP); 
   //ubidots.setDebug(true);
 }
 
@@ -89,22 +93,33 @@ void loop() {
   if (humedadValue<60){ //El nivel de humedad para el tomate debe ser 60% - 70%
     if(temper < 28) { //Se considera que la temperatura en las noches es menor a 28º
       digitalWrite(OPTO01_PIN,HIGH);
-      Serial.println("El riego se ha habiltado");
+      Serial.println("Estado de Riego: ON");
       valvula_riego = 1;
     } else {
       digitalWrite(OPTO01_PIN,LOW);
-      Serial.println("El riego se ha deshabilitado");
+      Serial.println("Estado de Riego: OFF");
       valvula_riego = 0;
     }
   } else {
     digitalWrite(OPTO01_PIN,LOW);
-    Serial.println("El riego se ha deshabilitado");
+    Serial.println("Estado de Riego: OFF");
     valvula_riego = 0;
+  }
+
+  if (digitalRead(NIVEL1_PIN) == HIGH) {
+    digitalWrite(OPTO02_PIN,LOW);
+    valvula_tanque = 0;
+    Serial.print("Estado de Bomba: OFF");
+  }  else {
+    digitalWrite(OPTO02_PIN,HIGH);
+    valvula_tanque = 1;
+    Serial.print("Estado de Bomba: ON");
   }
 
   ubidots.add("Temperatura Tº", temper);
   ubidots.add("Humedad %", humedadValue);
   ubidots.add("Válvula Riego", valvula_riego);
+  ubidots.add("Válvula Tanque", valvula_tanque);
 
   bool bufferSent = false;
   bufferSent = ubidots.send();
@@ -112,6 +127,6 @@ void loop() {
     Serial.println("Los valores fueron enviados satisfactoriamente!!");
   }
 
-  delay(1000);
+  delay(10000);
 
 }
