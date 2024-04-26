@@ -10,7 +10,6 @@
 #include <Arduino.h>
 #include <SoftwareSerial.h>
 
-
 const int RECV_PIN=4;
 const int IR_SEND_PIN=5;
 const int led001Pin = D0;
@@ -23,8 +22,6 @@ const int tmp001Pin = D5;
 const int blue001RX = D7;
 const int blue001TX = D8;
 
-//Se establece el pin 4 como bus OneWire
-//Se declara una variable para nuestro sensor
 
 SoftwareSerial bluetoothSerial(blue001RX, blue001TX);
 OneWire ourWire(tmp001Pin);
@@ -35,7 +32,6 @@ unsigned int wifi_attempts = 0, thing_attempts = 0, aws_attempts = 0, snp_attemp
 unsigned long lastMillis = 0, previousMillis = 0;
 const long interval = 5000;
  
-//Se establece el topico publicador
 #define AWS_IOT_SUBSCRIBE_TOPIC "idat_domotica/pub"
 #define AWS_IOT_PUBLISH_TOPIC "idat_domotica/pub"
 WiFiClientSecure net;
@@ -232,16 +228,15 @@ void loop()
     fin.toCharArray(charArray_fin, fin.length() + 1);
     time_t timeSinceEpoch_inicio = stringToTime(charArray_inicio);
     time_t timeSinceEpoch_fin = stringToTime(charArray_fin);
-    //Serial.println(timeSinceEpoch_inicio);
-    //Serial.println(timeSinceEpoch_fin);
-    //Serial.println(now);
     if (timeSinceEpoch_inicio < now and now < timeSinceEpoch_fin){
       if(tipo == "Fiesta"){
-        digitalWrite(led002Pin, HIGH);
-        digitalWrite(led001Pin, LOW);
+        digitalWrite(led002Pin, 255);
+        digitalWrite(led001Pin, 0);
+        delay(50);
+        digitalWrite(led002Pin, 0);
       } else if(tipo == "Pelicula") {
-        digitalWrite(led001Pin, HIGH);
-        digitalWrite(led002Pin, HIGH);
+        digitalWrite(led001Pin, 200);
+        digitalWrite(led002Pin, 200);
       }
     }
 
