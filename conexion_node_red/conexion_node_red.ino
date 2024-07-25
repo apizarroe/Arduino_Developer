@@ -4,25 +4,27 @@
 #include <OneWire.h>                
 #include <DallasTemperature.h>
 
-// Change the credentials below, so your ESP8266 connects to your router
+// Credenciales para WiFi
 const char* ssid = "Pizarro24G";
 const char* password = "admin1234";
 
-// MQTT broker credentials (set to NULL if not required)
+// Credenciales para broker MQTT (colocar NULL si no es requerido)
 const char* MQTT_username = NULL; 
 const char* MQTT_password = NULL; 
 
-// Change the variable to your Raspberry Pi IP address, so it connects to your MQTT broker
-const char* mqtt_server = "192.168.1.109";
+// Direcccion IP del Servidor broker MQTT
+const char* mqtt_server = "192.168.1.114";
 
 // Initializes the espClient. You should change the espClient name if you have multiple ESPs running in your home automation system
 WiFiClient espClient;
 PubSubClient client(espClient);
 
-// TEMPERATURE Sensor
-const int temper = D5;
-// Lamp - LED
-const int lamp = D4;
+// Lamparar LED
+const int lamp = D0;
+// Sensor de TEMPERATURA
+const int temper = D1;
+// Ventilador
+const int ventiSpeed = D2;
 
 // Initialize TEMPERATURE sensor.
 OneWire ourWire(temper);
@@ -32,10 +34,9 @@ DallasTemperature sensors(&ourWire);
 long now = millis();
 long lastMeasure = 0;
 
-// This functions connects your ESP8266 to your router
+// Función para conectar a la red WiFi
 void setup_wifi() {
   delay(10);
-  // We start by connecting to a WiFi network
   Serial.println();
   Serial.print("Connecting to ");
   Serial.println(ssid);
@@ -64,10 +65,8 @@ void callback(String topic, byte* message, unsigned int length) {
   }
   Serial.println();
 
-  // Feel free to add more if statements to control more GPIOs with MQTT
-
   // If a message is received on the topic room/lamp, you check if the message is either on or off. Turns the lamp GPIO according to the message
-  if(topic=="room/lamp"){
+  if(topic=="livingroom/lamp"){
       Serial.print("Changing Room lamp to ");
       if(messageTemp == "on"){
         digitalWrite(lamp, HIGH);
@@ -84,42 +83,48 @@ void callback(String topic, byte* message, unsigned int length) {
 // This functions reconnects your ESP8266 to your MQTT broker
 // Change the function below if you want to subscribe to more topics with your ESP8266 
 void reconnect() {
-  // Loop until we're reconnected
   while (!client.connected()) {
     Serial.print("Attempting MQTT connection...");
-    // Attempt to connect
     /*              
      YOU MIGHT NEED TO CHANGE THIS LINE, IF YOU'RE HAVING PROBLEMS WITH MQTT MULTIPLE CONNECTIONS
      To change the ESP device ID, you will have to give a new name to the ESP8266.
-     Here's how it looks:
-       if (client.connect("ESP8266Client")) {
-     You can do it like this:
-       if (client.connect("ESP1_Office")) {
-     Then, for the other ESP:
-       if (client.connect("ESP2_Garage")) {
-      That should solve your MQTT multiple connections problem
     */
     if (client.connect("ESP8266Client", MQTT_username, MQTT_password)) {
       Serial.println("connected");  
-      // Subscribe or resubscribe to a topic
-      // You can subscribe to more topics (to control more LEDs in this example)
-      client.subscribe("room/lamp");
+      // Subscribe or resubscribe to a topic. You can subscribe to more topics
+      client.subscribe("livingroom/lamp");
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
       Serial.println(" try again in 5 seconds");
-      // Wait 5 seconds before retrying
       delay(5000);
     }
   }
 }
 
+void MotorEncendidoFull()
+{
+  analogWrite(ventiSpeed, 255);
+  //Serial.println("Alto");
+}
+
+void MotorEncendidoMedio()
+{
+  analogWrite(ventiSpeed, 180);
+  //Serial.println("Medio");
+}
+
+void MotorApagado()
+{
+  analogWrite(ventiSpeed, 0);
+  //Serial.println("Apagado");
+}
+
 // The setup function sets your ESP GPIOs to Outputs, starts the serial communication at a baud rate of 9600
-// Sets your mqtt broker and sets the callback function
-// The callback function is what receives messages and actually controls the LEDs
+// Sets your mqtt broker and sets the callback function, what receives messages and actually controls the LEDs
 void setup() {
   pinMode(lamp, OUTPUT);   
-  Serial.begin(9600);
+  Serial.begin(115200);
   setup_wifi();
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
@@ -136,7 +141,7 @@ void loop() {
     client.connect("ESP8266Client");
 
   now = millis();
-  // Publishes new temperature and humidity every 30 seconds
+  // Publishes new temperature and humidity every second
   if (now - lastMeasure > 1000) {
     lastMeasure = now;
 
@@ -151,7 +156,18 @@ void loop() {
     }
 
     // Publishes Temperature values
-    client.publish("room/temperature", String(temperatureC).c_str());
+    client.publish("livingroom/temperature", String(temperatureC).c_str());
+
+    if (temperatureC <= 20){
+      client.publish("livingroom/ventila", "Apagado");
+      MotorApagado();
+    } else if (temperatureC >20 and temperatureC <= 25) {
+      client.publish("livingroom/ventila", "Medio");
+      MotorEncendidoMedio();
+    } else {
+      client.publish("livingroom/ventila", "Alto");
+      MotorEncendidoFull();
+    }
 
     Serial.print("Temperature: ");
     Serial.print(temperatureC);
