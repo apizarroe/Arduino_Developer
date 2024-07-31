@@ -1,8 +1,8 @@
 
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
-#include <OneWire.h>                
-#include <DallasTemperature.h>
+//#include <OneWire.h>                
+//#include <DallasTemperature.h>
 
 // Credenciales para WiFi
 const char* ssid = "Pizarro24G";
@@ -20,22 +20,26 @@ WiFiClient espClient;
 PubSubClient client(espClient);
 
 // Lamparar LED
-const int lamp1A = D0;
-const int lamp1B = D1;
-const int lamp1C = D2;
+const int lamp2A = D0;
+const int lamp2B = D1;
+const int lamp2C = D2;
 // Ventilador
-const int ventiSpeed = D3;
+const int persiaSpeed = D3;
+const int persiaSentidoA = D4;
+const int persiaSentidoB = D5;
 // Sensor de TEMPERATURA
-const int temper = D4;
+const int finCarreraA = D6;
+const int finCarreraB = D7;
 
 // Initialize TEMPERATURE sensor.
-OneWire ourWire(temper);
-DallasTemperature sensors(&ourWire);
+//OneWire ourWire(temper);
+//DallasTemperature sensors(&ourWire);
 
 // Auxiliar variables
 long now = millis();
 long lastMeasure = 0;
-int flg_ventil_autom = 0;
+int flg_persiana = 0;
+String estado_persiana = "";
 
 // Función para conectar a la red WiFi
 void setup_wifi() {
@@ -53,22 +57,25 @@ void setup_wifi() {
   Serial.println(WiFi.localIP());
 }
 
-void MotorEncendidoFull()
+void PersianaAbrir()
 {
-  analogWrite(ventiSpeed, 255);
-  //Serial.println("Alto");
+  digitalWrite(persiaSentidoA, LOW);
+  digitalWrite(persiaSentidoB, HIGH);
+  analogWrite(persiaSpeed, 170);
 }
 
-void MotorEncendidoMedio()
+void PersianaCerrar()
 {
-  analogWrite(ventiSpeed, 180);
-  //Serial.println("Medio");
+  digitalWrite(persiaSentidoA, HIGH);
+  digitalWrite(persiaSentidoB, LOW);
+  analogWrite(persiaSpeed, 170);
 }
 
-void MotorApagado()
+void PersianaApagar()
 {
-  analogWrite(ventiSpeed, 0);
-  //Serial.println("Apagado");
+  digitalWrite(persiaSentidoA, LOW);
+  digitalWrite(persiaSentidoB, LOW);
+  analogWrite(persiaSpeed, 0);
 }
 
 // This function is executed when some device publishes a message to a topic that your ESP8266 is subscribed to
@@ -80,7 +87,7 @@ void callback(String topic, byte* message, unsigned int length) {
   //Serial.println(flg_ventil_autom);
 
   // If a message is received on the topic room/lamp, you check if the message is either on or off. Turns the lamp GPIO according to the message
-  if(topic=="livingroom/lamp") {
+  if(topic=="bedroom/lamp") {
     for (int i = 0; i < length; i++) {
       Serial.print((char)message[i]);
       messageTemp += (char)message[i];
@@ -92,17 +99,17 @@ void callback(String topic, byte* message, unsigned int length) {
     Serial.print(". Message: ");
     Serial.print("Cambiando lampara de habitación a ");
     if(messageTemp == "on"){
-      digitalWrite(lamp1A, HIGH);
-      digitalWrite(lamp1B, HIGH);
-      digitalWrite(lamp1C, HIGH);
+      digitalWrite(lamp2A, HIGH);
+      digitalWrite(lamp2B, HIGH);
+      digitalWrite(lamp2C, HIGH);
       Serial.println("Encendido");
     } else if(messageTemp == "off") {
-      digitalWrite(lamp1A, LOW);
-      digitalWrite(lamp1B, LOW);
-      digitalWrite(lamp1C, LOW);
+      digitalWrite(lamp2A, LOW);
+      digitalWrite(lamp2B, LOW);
+      digitalWrite(lamp2C, LOW);
       Serial.println("Apagado");
     }
-  } else if(topic=="livingroom/ventil_auto"){
+  } else if(topic=="bedroom/blind"){
     for (int i = 0; i < length; i++) {
       Serial.print((char)message[i]);
       messageTemp += (char)message[i];
@@ -112,39 +119,19 @@ void callback(String topic, byte* message, unsigned int length) {
     Serial.print("Message arrived on topic: ");
     Serial.print(topic);
     Serial.print(". Message: ");
-    Serial.print("Cambiando funcionamiento de ventilador a ");
+    Serial.print("Persiana en estado de ");
     if(messageTemp == "on"){
-      flg_ventil_autom = 1;
-      Serial.println("Automatico");
-    } else if (messageTemp == "off") {
-      flg_ventil_autom = 0;
-      MotorApagado();
-      client.publish("livingroom/ventila", "Apagado");
-      Serial.println("Manual");
+      if(digitalRead(finCarreraA) == HIGH){
+        Serial.println("Apertura");
+        flg_persiana = 1;
+        estado_persiana = "apertura";
+      } else if (digitalRead(finCarreraB) == HIGH){
+        Serial.println("Cierre");
+        flg_persiana = 1;
+        estado_persiana = "cierre";
+      }
     } 
-  } else if(flg_ventil_autom == 0){    
-    if(topic=="livingroom/ventila"){
-      for (int i = 0; i < length; i++) {
-        Serial.print((char)message[i]);
-        messageTemp += (char)message[i];
-      }
-      Serial.println();
-      Serial.print("Message arrived on topic: ");
-      Serial.print(topic);
-      Serial.print(". Message: ");
-      Serial.print("Cambiando potencia de ventilador a ");
-      if(messageTemp == "Apagado"){
-        MotorApagado();
-        Serial.println("Apagado");
-      } else if (messageTemp == "Medio") {
-        MotorEncendidoMedio();
-        Serial.println("Potencia Media");
-      } else if (messageTemp == "Alto") {
-        MotorEncendidoFull();
-        Serial.println("Potencia Completa");
-      }
-    }
-  }
+  } 
 }
 
 // This functions reconnects your ESP8266 to your MQTT broker
@@ -159,9 +146,9 @@ void reconnect() {
     if (client.connect("ESP8266Client", MQTT_username, MQTT_password)) {
       Serial.println("connected");  
       // Subscribe or resubscribe to a topic. You can subscribe to more topics
-      client.subscribe("livingroom/lamp");
-      client.subscribe("livingroom/ventil_auto");
-      client.subscribe("livingroom/ventila");
+      client.subscribe("bedroom/lamp");
+      client.subscribe("bedroom/blind");
+      client.subscribe("bedroom/blind_operation");
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state()); 
@@ -174,9 +161,14 @@ void reconnect() {
 // The setup function sets your ESP GPIOs to Outputs, starts the serial communication at a baud rate of 9600
 // Sets your mqtt broker and sets the callback function, what receives messages and actually controls the LEDs
 void setup() {
-  pinMode(lamp1A, OUTPUT);
-  pinMode(lamp1B, OUTPUT);
-  pinMode(lamp1C, OUTPUT);
+  pinMode(lamp2A, OUTPUT);
+  pinMode(lamp2B, OUTPUT);
+  pinMode(lamp2C, OUTPUT);
+  pinMode(persiaSpeed, OUTPUT);
+  pinMode(persiaSentidoA, OUTPUT);
+  pinMode(persiaSentidoB, OUTPUT);
+  pinMode(finCarreraA, INPUT);
+  pinMode(finCarreraB, INPUT);
   Serial.begin(115200);
   setup_wifi();
   client.setServer(mqtt_server, 1883);
@@ -196,26 +188,47 @@ void loop() {
     //client.connect("ESP8266Client");
 
   // Se envía el comando para leer la temperatura
-  sensors.requestTemperatures();
-  float temperatureC= sensors.getTempCByIndex(0);
+  //sensors.requestTemperatures();
+  //float temperatureC= sensors.getTempCByIndex(0);
 
   now = millis();
   // Publishes new temperature and humidity every second
 
-  if (flg_ventil_autom == 1){
-    if (temperatureC <= 20){
-      client.publish("livingroom/ventila", "Apagado");
-      MotorApagado();
-    } else if (temperatureC >20 and temperatureC <= 25) {
-      client.publish("livingroom/ventila", "Medio");
-      MotorEncendidoMedio();
-    } else {
-      client.publish("livingroom/ventila", "Alto");
-      MotorEncendidoFull();
+  if (flg_persiana == 1){
+    if (estado_persiana == "apertura" and digitalRead(finCarreraB) == LOW) {
+      PersianaAbrir();
+      client.publish("bedroom/blind_operation", "Abriendo...");
+    } else if (estado_persiana == "apertura" and digitalRead(finCarreraB) == HIGH) {
+      PersianaApagar();
+      client.publish("bedroom/blind_operation", "Inactivo");
+      flg_persiana = 0;
+      estado_persiana = "";
+    } else if (estado_persiana == "cierre" and digitalRead(finCarreraA) == LOW) {
+      PersianaCerrar();
+      client.publish("bedroom/blind_operation", "Cerrando...");
+    } else if (estado_persiana == "cierre" and digitalRead(finCarreraA) == HIGH) {
+      PersianaApagar();
+      client.publish("bedroom/blind_operation", "Inactivo");
+      flg_persiana = 0;
+      estado_persiana = "";
     }
-  }    
+  }
 
   if (now - lastMeasure > 1000) {
+    lastMeasure = now;
+
+    Serial.print("flg_persiana: ");
+    Serial.println(flg_persiana);
+    Serial.print("estado_persiana: ");
+    Serial.println(estado_persiana);
+    Serial.print("finCarreraA: ");
+    Serial.println(digitalRead(finCarreraA));
+    Serial.print("finCarreraB: ");
+    Serial.println(digitalRead(finCarreraB));
+  }
+
+
+  /*if (now - lastMeasure > 1000) {
     lastMeasure = now;
 	
     // Check if any reads failed and exit early (to try again).h
@@ -230,5 +243,5 @@ void loop() {
     //Serial.print("Temperature: ");
     //Serial.print(temperatureC);
     //Serial.println(" ºC");
-  }
+  }*/
 } 
