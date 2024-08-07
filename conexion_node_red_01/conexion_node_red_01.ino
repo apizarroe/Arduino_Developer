@@ -217,6 +217,7 @@ void loop() {
   if (now - lastMeasure > 1000) {
     lastMeasure = now;
 
+
     Serial.print("flg_persiana: ");
     Serial.println(flg_persiana);
     Serial.print("estado_persiana: ");

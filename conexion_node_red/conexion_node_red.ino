@@ -156,7 +156,7 @@ void reconnect() {
      YOU MIGHT NEED TO CHANGE THIS LINE, IF YOU'RE HAVING PROBLEMS WITH MQTT MULTIPLE CONNECTIONS
      To change the ESP device ID, you will have to give a new name to the ESP8266.
     */
-    if (client.connect("ESP8266Client", MQTT_username, MQTT_password)) {
+    if (client.connect("ESP8266ClientSala", MQTT_username, MQTT_password)) {
       Serial.println("connected");  
       // Subscribe or resubscribe to a topic. You can subscribe to more topics
       client.subscribe("livingroom/lamp");
