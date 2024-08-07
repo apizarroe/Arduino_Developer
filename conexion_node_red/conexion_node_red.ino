@@ -36,6 +36,9 @@ DallasTemperature sensors(&ourWire);
 long now = millis();
 long lastMeasure = 0;
 int flg_ventil_autom = 0;
+float temperatureC = 0.0;
+const char* modoOperativo = "";
+const char* modoTemp = "";
 
 // Función para conectar a la red WiFi
 void setup_wifi() {
@@ -86,7 +89,6 @@ void callback(String topic, byte* message, unsigned int length) {
       messageTemp += (char)message[i];
     }
     Serial.println();
-
     Serial.print("Message arrived on topic: ");
     Serial.print(topic);
     Serial.print(". Message: ");
@@ -108,18 +110,30 @@ void callback(String topic, byte* message, unsigned int length) {
       messageTemp += (char)message[i];
     }
     Serial.println();
-    
     Serial.print("Message arrived on topic: ");
     Serial.print(topic);
     Serial.print(". Message: ");
     Serial.print("Cambiando funcionamiento de ventilador a ");
     if(messageTemp == "on"){
       flg_ventil_autom = 1;
+      if (temperatureC <= 20){
+        modoOperativo = "Apagado";
+        client.publish("livingroom/ventila", modoOperativo);
+        MotorApagado();
+      } else if (temperatureC >20 and temperatureC <= 25) {
+        modoOperativo = "Medio";
+        client.publish("livingroom/ventila", modoOperativo);
+        MotorEncendidoMedio();
+      } else {
+        modoOperativo = "Alto";
+        client.publish("livingroom/ventila", modoOperativo);
+        MotorEncendidoFull();
+      }
       Serial.println("Automatico");
     } else if (messageTemp == "off") {
       flg_ventil_autom = 0;
-      MotorApagado();
       client.publish("livingroom/ventila", "Apagado");
+      MotorApagado();
       Serial.println("Manual");
     } 
   } else if(flg_ventil_autom == 0){    
@@ -156,7 +170,7 @@ void reconnect() {
      YOU MIGHT NEED TO CHANGE THIS LINE, IF YOU'RE HAVING PROBLEMS WITH MQTT MULTIPLE CONNECTIONS
      To change the ESP device ID, you will have to give a new name to the ESP8266.
     */
-    if (client.connect("ESP8266ClientSala", MQTT_username, MQTT_password)) {
+    if (client.connect("ESP8266Sala", MQTT_username, MQTT_password)) {
       Serial.println("connected");  
       // Subscribe or resubscribe to a topic. You can subscribe to more topics
       client.subscribe("livingroom/lamp");
@@ -197,26 +211,36 @@ void loop() {
 
   // Se envía el comando para leer la temperatura
   sensors.requestTemperatures();
-  float temperatureC= sensors.getTempCByIndex(0);
+  temperatureC= sensors.getTempCByIndex(0);
 
   now = millis();
-  // Publishes new temperature and humidity every second
-
-  if (flg_ventil_autom == 1){
-    if (temperatureC <= 20){
-      client.publish("livingroom/ventila", "Apagado");
-      MotorApagado();
-    } else if (temperatureC >20 and temperatureC <= 25) {
-      client.publish("livingroom/ventila", "Medio");
-      MotorEncendidoMedio();
-    } else {
-      client.publish("livingroom/ventila", "Alto");
-      MotorEncendidoFull();
-    }
-  }    
+  // Publishes new temperature and humidity every second 
 
   if (now - lastMeasure > 1000) {
     lastMeasure = now;
+
+    if (flg_ventil_autom == 1){
+      if (temperatureC <= 20){
+        modoOperativo = "Apagado";
+        if(modoTemp != modoOperativo){
+          client.publish("livingroom/ventila", modoOperativo);
+          MotorApagado();
+        }
+      } else if (temperatureC >20 and temperatureC <= 25) {
+        modoOperativo = "Medio";
+        if(modoTemp != modoOperativo){
+          client.publish("livingroom/ventila", modoOperativo);
+          MotorEncendidoMedio();
+        }
+      } else {
+        modoOperativo = "Alto";
+        if(modoTemp != modoOperativo){
+          client.publish("livingroom/ventila", modoOperativo);
+          MotorEncendidoFull();
+        }
+      }
+      modoTemp = modoOperativo;
+    }   
 	
     // Check if any reads failed and exit early (to try again).h
     if (isnan(temperatureC)) {
