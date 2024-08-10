@@ -1,5 +1,7 @@
 
 #include <ESP8266WiFi.h>
+#include <NTPClient.h>
+#include <WiFiUdp.h>
 #include <PubSubClient.h>
 #include <OneWire.h>                
 #include <DallasTemperature.h>
@@ -7,6 +9,10 @@
 // Credenciales para WiFi
 const char* ssid = "Pizarro24G";
 const char* password = "admin1234";
+
+// Configura el cliente UDP
+WiFiUDP udp;
+NTPClient timeClient(udp, "pool.ntp.org", 0, 60000); // Servidor NTP, zona horaria, intervalo de actualización
 
 // Credenciales para broker MQTT (colocar NULL si no es requerido)
 const char* MQTT_username = NULL; 
@@ -34,7 +40,8 @@ DallasTemperature sensors(&ourWire);
 
 // Auxiliar variables
 long now = millis();
-long lastMeasure = 0, lastMeasuretemp = 0, lastMeasureled = 0;
+long lastMeasure = 0, lastMeasuretemp = 0, lastMeasureled = 0, lastMeasuretime=0;
+unsigned long epochTime = 0, salahorainicio = 0, salahorafin = 0;
 int flg_ventil_autom = 0;
 float temperatureC = 0.0;
 const char* modoOperativo = "";
@@ -81,8 +88,6 @@ void MotorApagado()
 // your ESP8266 is subscribed you can actually do something
 void callback(String topic, byte* message, unsigned int length) {
   String messageTemp;
-
-  //Serial.println(flg_ventil_autom);
 
   // If a message is received on the topic room/lamp, you check if the message is either on or off. Turns the lamp GPIO according to the message
   if(topic=="livingroom/lamp") {
@@ -152,8 +157,8 @@ void callback(String topic, byte* message, unsigned int length) {
       MotorApagado();
       Serial.println("Manual");
     } 
-  } else if(flg_ventil_autom == 0){    
-    if(topic=="livingroom/aire"){
+  } else if(topic=="livingroom/aire"){
+    if(flg_ventil_autom == 0){
       for (int i = 0; i < length; i++) {
         Serial.print((char)message[i]);
         messageTemp += (char)message[i];
@@ -174,6 +179,16 @@ void callback(String topic, byte* message, unsigned int length) {
         Serial.println("Potencia Completa");
       }
     }
+  } else if(topic=="livingroom/salahorainicio"){
+    for (int i = 0; i < length; i++) {
+      messageTemp += (char)message[i];
+    }
+    salahorainicio = messageTemp.toInt();
+  } else if(topic=="livingroom/salahorafin"){
+    for (int i = 0; i < length; i++) {
+      messageTemp += (char)message[i];
+    }
+    salahorafin = messageTemp.toInt();
   }
 }
 
@@ -192,6 +207,8 @@ void reconnect() {
       client.subscribe("livingroom/lamp");
       client.subscribe("livingroom/aireauto");
       client.subscribe("livingroom/aire");
+      client.subscribe("livingroom/salahorainicio");
+      client.subscribe("livingroom/salahorafin");
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state()); 
@@ -209,6 +226,8 @@ void setup() {
   pinMode(lamp1C, OUTPUT);
   Serial.begin(115200);
   setup_wifi();
+
+  timeClient.begin();
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
 }
@@ -219,7 +238,6 @@ void loop() {
   if (!client.connected()) {
     reconnect();
   }
-
   client.loop();
 
   //if(!client.loop())
@@ -231,6 +249,20 @@ void loop() {
 
   now = millis();
   // Publishes new temperature and humidity every second 
+
+  if (now - lastMeasuretime > 5000) {
+    lastMeasuretime = now;
+    timeClient.update(); // Actualiza el tiempo
+    epochTime = timeClient.getEpochTime(); // Obtiene la hora en formato epoch
+
+    if(salahorafin!=0){
+      if (epochTime>salahorafin){
+        client.publish("livingroom/lamp", "off");
+        salahorafin = 0;
+        Serial.println("Fin de Evento!");
+      }
+    }
+  }
 
   if (now - lastMeasure > 1000) {
     lastMeasure = now;
