@@ -34,11 +34,13 @@ DallasTemperature sensors(&ourWire);
 
 // Auxiliar variables
 long now = millis();
-long lastMeasure = 0;
+long lastMeasure = 0, lastMeasuretemp = 0, lastMeasureled = 0;
 int flg_ventil_autom = 0;
 float temperatureC = 0.0;
 const char* modoOperativo = "";
 const char* modoTemp = "";
+String modoLed = "";
+bool ledRGBsalaP1=LOW, ledRGBsalaP2=LOW, ledRGBsalaP3=LOW;
 
 // Función para conectar a la red WiFi
 void setup_wifi() {
@@ -97,14 +99,28 @@ void callback(String topic, byte* message, unsigned int length) {
       digitalWrite(lamp1A, HIGH);
       digitalWrite(lamp1B, HIGH);
       digitalWrite(lamp1C, HIGH);
+      modoLed = messageTemp;
       Serial.println("Encendido");
+    } else if (messageTemp == "cine") {
+      digitalWrite(lamp1A, LOW);
+      digitalWrite(lamp1B, HIGH);
+      digitalWrite(lamp1C, HIGH);
+      modoLed = messageTemp;
+      Serial.println("Cine");
+    } else if (messageTemp == "fiesta") {
+      digitalWrite(lamp1A, HIGH);
+      digitalWrite(lamp1B, LOW);
+      digitalWrite(lamp1C, HIGH);
+      modoLed = messageTemp;
+      Serial.println("Fiesta");
     } else if(messageTemp == "off") {
       digitalWrite(lamp1A, LOW);
       digitalWrite(lamp1B, LOW);
       digitalWrite(lamp1C, LOW);
+      modoLed = messageTemp;
       Serial.println("Apagado");
     }
-  } else if(topic=="livingroom/ventil_auto"){
+  } else if(topic=="livingroom/aireauto"){
     for (int i = 0; i < length; i++) {
       Serial.print((char)message[i]);
       messageTemp += (char)message[i];
@@ -118,26 +134,26 @@ void callback(String topic, byte* message, unsigned int length) {
       flg_ventil_autom = 1;
       if (temperatureC <= 20){
         modoOperativo = "Apagado";
-        client.publish("livingroom/ventila", modoOperativo);
+        client.publish("livingroom/aire", modoOperativo);
         MotorApagado();
       } else if (temperatureC >20 and temperatureC <= 25) {
         modoOperativo = "Medio";
-        client.publish("livingroom/ventila", modoOperativo);
+        client.publish("livingroom/aire", modoOperativo);
         MotorEncendidoMedio();
       } else {
         modoOperativo = "Alto";
-        client.publish("livingroom/ventila", modoOperativo);
+        client.publish("livingroom/aire", modoOperativo);
         MotorEncendidoFull();
       }
       Serial.println("Automatico");
     } else if (messageTemp == "off") {
       flg_ventil_autom = 0;
-      client.publish("livingroom/ventila", "Apagado");
+      client.publish("livingroom/aire", "Apagado");
       MotorApagado();
       Serial.println("Manual");
     } 
   } else if(flg_ventil_autom == 0){    
-    if(topic=="livingroom/ventila"){
+    if(topic=="livingroom/aire"){
       for (int i = 0; i < length; i++) {
         Serial.print((char)message[i]);
         messageTemp += (char)message[i];
@@ -174,8 +190,8 @@ void reconnect() {
       Serial.println("connected");  
       // Subscribe or resubscribe to a topic. You can subscribe to more topics
       client.subscribe("livingroom/lamp");
-      client.subscribe("livingroom/ventil_auto");
-      client.subscribe("livingroom/ventila");
+      client.subscribe("livingroom/aireauto");
+      client.subscribe("livingroom/aire");
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state()); 
@@ -223,25 +239,29 @@ void loop() {
       if (temperatureC <= 20){
         modoOperativo = "Apagado";
         if(modoTemp != modoOperativo){
-          client.publish("livingroom/ventila", modoOperativo);
+          client.publish("livingroom/aire", modoOperativo);
           MotorApagado();
         }
       } else if (temperatureC >20 and temperatureC <= 25) {
         modoOperativo = "Medio";
         if(modoTemp != modoOperativo){
-          client.publish("livingroom/ventila", modoOperativo);
+          client.publish("livingroom/aire", modoOperativo);
           MotorEncendidoMedio();
         }
       } else {
         modoOperativo = "Alto";
         if(modoTemp != modoOperativo){
-          client.publish("livingroom/ventila", modoOperativo);
+          client.publish("livingroom/aire", modoOperativo);
           MotorEncendidoFull();
         }
       }
       modoTemp = modoOperativo;
     }   
-	
+  }
+
+  if(now - lastMeasuretemp > 5000){
+    lastMeasuretemp = now;
+
     // Check if any reads failed and exit early (to try again).h
     if (isnan(temperatureC)) {
       Serial.println("Failed to read from TEMPERATURE sensor!");
@@ -249,10 +269,23 @@ void loop() {
     }
 
     // Publishes Temperature values
-    client.publish("livingroom/temperature", String(temperatureC).c_str());
+    client.publish("livingroom/temperature", String(temperatureC).c_str(), false);
 
     //Serial.print("Temperature: ");
     //Serial.print(temperatureC);
     //Serial.println(" ºC");
   }
+
+  if(now - lastMeasureled > 100){
+    lastMeasureled = now;
+    if(modoLed == "fiesta") {
+      ledRGBsalaP1 = !ledRGBsalaP1;
+      ledRGBsalaP3 = !ledRGBsalaP3;
+      digitalWrite(lamp1A, ledRGBsalaP1);
+      digitalWrite(lamp1B, LOW);
+      digitalWrite(lamp1C, ledRGBsalaP3);
+    }
+  }
+
+  
 } 
