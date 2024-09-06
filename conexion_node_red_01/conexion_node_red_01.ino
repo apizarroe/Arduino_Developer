@@ -5,15 +5,15 @@
 //#include <DallasTemperature.h>
 
 // Credenciales para WiFi
-const char* ssid = "Pizarro24G";
-const char* password = "admin1234";
+const char* ssid = "RedmiAPE";
+const char* password = "asdf1234";
 
 // Credenciales para broker MQTT (colocar NULL si no es requerido)
 const char* MQTT_username = NULL; 
 const char* MQTT_password = NULL; 
 
 // Direcccion IP del Servidor broker MQTT
-const char* mqtt_server = "192.168.1.114";
+const char* mqtt_server = "192.168.123.231";
 
 // Initializes the espClient. You should change the espClient name if you have multiple ESPs running in your home automation system
 WiFiClient espClient;
@@ -221,21 +221,4 @@ void loop() {
     Serial.println(estado_persiana);
   }
 
-
-  /*if (now - lastMeasure > 1000) {
-    lastMeasure = now;
-	
-    // Check if any reads failed and exit early (to try again).h
-    if (isnan(temperatureC)) {
-      Serial.println("Failed to read from TEMPERATURE sensor!");
-      return;
-    }
-
-    // Publishes Temperature values
-    client.publish("livingroom/temperature", String(temperatureC).c_str());
-
-    //Serial.print("Temperature: ");
-    //Serial.print(temperatureC);
-    //Serial.println(" ºC");
-  }*/
 } 
