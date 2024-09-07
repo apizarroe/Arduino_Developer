@@ -56,11 +56,9 @@ bool AccesoValido = LOW; //VARIABLE ACCESO RFID
 bool Intruso; //VARIABLE MENSAJE DE INTRUSO 
 bool NegIntruso;//VARIABLE NEGAR ACCESO
 bool Alarma_Node; //VARIABLE ACTIVA SEGURIDAD NODE
-
-
 int reconectar;
-int Alarma_ON; //VARIABLE ACTIVACION ALARMA
-int Alarma_OFF; //VARIABLE DESACTIVACION ALARMA
+int Alarma_ON=0; //VARIABLE ACTIVACION ALARMA
+int Alarma_OFF=0; //VARIABLE DESACTIVACION ALARMA
 
 //----------------------------------[FUNCION RECIBIR MENSAJES DE NODE]-------------------------------
 
@@ -68,7 +66,7 @@ void callback(String topic, byte* message, unsigned int length) {
   String messageTemp;
 
   // If a message is received on the topic room/lamp, you check if the message is either on or off. Turns the lamp GPIO according to the message
-  if(topic=="room/Alarma") {
+  if(topic=="security/Alarma") {
     for (int i = 0; i < length; i++) {
       Serial.print((char)message[i]);
       messageTemp += (char)message[i];
@@ -95,12 +93,12 @@ void callback(String topic, byte* message, unsigned int length) {
 
 void reconnect() {
   while (!tclient.connected()) {
-    Serial.print("Intentando conexión MQTT");
+    Serial.print("Intentando conexión MQTT...");
     
     if (tclient.connect("ESP32 Seguridad", MQTT_username, MQTT_password)) {
       Serial.println("conectado");  
       
-      tclient.subscribe("room/Alarma");
+      tclient.subscribe("security/Alarma");
     } else {
       Serial.print("falló, rc=");
       Serial.print(tclient.state()); 
@@ -240,9 +238,10 @@ void loop() {
     lastTimeBotRan = millis();
     }
     
-
   if (Alarma_Activada == LOW && Alarma_ON == 1) {
+    Alarma_OFF= 0;
     Alarma_Activada = HIGH;
+
     
     if (Alarma_Activada) {
       bot.sendMessage(CHAT_ID, "💻 SIS ENCENDIDO - LOCAL", "");
@@ -258,9 +257,6 @@ void loop() {
     }
       Alarma_OFF = 0; 
   }
-
-
-
 
   if (Alarma_Activada == LOW && Alarma_ON == 2) {
     Alarma_Activada = HIGH;
@@ -298,7 +294,7 @@ void loop() {
     puertaState = digitalRead(SenPuerta);
     pirState = digitalRead(pir);
 
-if (Alarma_Activada){
+/*if (Alarma_Activada){
 
     if (puertaState == LOW) {
     digitalWrite(buzzer, HIGH); 
@@ -326,7 +322,7 @@ if (Alarma_Activada){
     }else{
       digitalWrite(buzzer,LOW);
 
-    }
+    }*/
 
     
 
