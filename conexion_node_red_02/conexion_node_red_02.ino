@@ -99,6 +99,7 @@ void reconnect() {
       Serial.println("conectado");  
       
       tclient.subscribe("security/Alarma");
+      tclient.subscribe("security/AlarmaIn");
     } else {
       Serial.print("falló, rc=");
       Serial.print(tclient.state()); 
@@ -140,12 +141,14 @@ void handleNewMessages(int numNewMessages) {
 
     if (text == "/Alarma_ON") {
       bot.sendMessage(chat_id, "Encendiendo SIS", "");
-      Alarma_ON = 2;
+      //Alarma_ON = 2;
+      tclient.publish("security/AlarmaIn", "on");
     }
     
     if (text == "/Alarma_OFF") {
       bot.sendMessage(chat_id, "Apagando SIS", "");
-      Alarma_OFF = 2;
+      //Alarma_OFF = 2;
+      tclient.publish("security/AlarmaIn", "off");
     }
     
     if (text == "/Estado") {
@@ -294,7 +297,7 @@ void loop() {
     puertaState = digitalRead(SenPuerta);
     pirState = digitalRead(pir);
 
-/*if (Alarma_Activada){
+if (Alarma_Activada){
 
     if (puertaState == LOW) {
     digitalWrite(buzzer, HIGH); 
@@ -322,10 +325,8 @@ void loop() {
     }else{
       digitalWrite(buzzer,LOW);
 
-    }*/
-
+    }
     
-
   //-----------------------------[LECTOR DE RFID]------------------------------------------
 
   // ver si hay nuevas tarjetas
